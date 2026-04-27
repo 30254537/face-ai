@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI气质分析</title>
+
+<style>
+body {
+  margin:0;
+  background:#0e0e0e;
+  color:#fff;
+  font-family:"PingFang SC",sans-serif;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  padding:30px;
+}
+
+h1 {
+  margin-bottom:20px;
+}
+
+.upload {
+  margin-bottom:20px;
+}
+
+button {
+  padding:12px 20px;
+  border:none;
+  border-radius:10px;
+  background:#fff;
+  color:#000;
+  font-size:16px;
+  cursor:pointer;
+}
+
+.poster {
+  width:300px;
+  margin-top:20px;
+  border-radius:16px;
+  overflow:hidden;
+  transition:0.3s;
+}
+
+.blur {
+  filter:blur(12px);
+}
+
+.unlock {
+  margin-top:20px;
+  display:none;
+}
+</style>
+</head>
+
+<body>
+
+<h1>生成你的专属气质海报</h1>
+
+<input type="file" id="file" class="upload">
+
+<button onclick="start()">开始分析</button>
+
+<img id="poster" class="poster">
+
+<button id="unlockBtn" class="unlock" onclick="unlock()">解锁高清版</button>
+
+<script>
+
+async function start() {
+  const file = document.getElementById("file").files[0];
+  if(!file) return alert("请先上传图片");
+
+  const reader = new FileReader();
+
+  reader.onload = async () => {
+    const base64 = reader.result;
+
+    // 创建订单
+    const order = await fetch("https://你的后端地址/create-order", {
+      method:"POST"
+    });
+    const { token } = await order.json();
+
+    // 生成报告
+    const res = await fetch("https://你的后端地址/generate", {
+      method:"POST",
+      headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify({
+        imageBase64: base64,
+        token
+      })
+    });
+
+    const data = await res.json();
+
+    const poster = document.getElementById("poster");
+    poster.src = data.report;
+
+    // 模糊处理（核心）
+    poster.classList.add("blur");
+
+    document.getElementById("unlockBtn").style.display = "block";
+  };
+
+  reader.readAsDataURL(file);
+}
+
+// 测试解锁（后面换支付）
+function unlock() {
+  document.getElementById("poster").classList.remove("blur");
+}
+
+</script>
+
+</body>
+</html>
