@@ -1,118 +1,285 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AI气质分析</title>
-
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>个人色彩分析 H5</title>
 <style>
-body {
-  margin:0;
-  background:#0e0e0e;
-  color:#fff;
-  font-family:"PingFang SC",sans-serif;
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  padding:30px;
-}
+  :root {
+    --bg: #f3eee7;
+    --card: #fffaf4;
+    --ink: #4a3f35;
+    --line: #d7c8b8;
+    --accent: #8a6f5a;
+  }
 
-h1 {
-  margin-bottom:20px;
-}
+  * { box-sizing: border-box; }
 
-.upload {
-  margin-bottom:20px;
-}
+  body {
+    margin: 0;
+    padding: 24px;
+    font-family: "PingFang SC", "Noto Sans SC", sans-serif;
+    color: var(--ink);
+    background:
+      radial-gradient(circle at 20% 0, #fdf9f3 0, var(--bg) 55%),
+      linear-gradient(180deg, #f5efe7 0, #f2ece4 100%);
+  }
 
-button {
-  padding:12px 20px;
-  border:none;
-  border-radius:10px;
-  background:#fff;
-  color:#000;
-  font-size:16px;
-  cursor:pointer;
-}
+  .container {
+    max-width: 980px;
+    margin: 0 auto;
+    display: grid;
+    gap: 16px;
+  }
 
-.poster {
-  width:300px;
-  margin-top:20px;
-  border-radius:16px;
-  overflow:hidden;
-  transition:0.3s;
-}
+  .panel {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    box-shadow: 0 10px 24px rgba(86, 64, 42, 0.08);
+    padding: 16px;
+  }
 
-.blur {
-  filter:blur(12px);
-}
+  h1 {
+    margin: 0;
+    font-size: 28px;
+    letter-spacing: 1px;
+  }
 
-.unlock {
-  margin-top:20px;
-  display:none;
-}
+  .subtitle {
+    margin-top: 6px;
+    color: #8a7c6f;
+    font-size: 14px;
+  }
+
+  .form-grid {
+    display: grid;
+    gap: 10px;
+    grid-template-columns: 1fr 1fr auto;
+    align-items: end;
+  }
+
+  label {
+    display: grid;
+    gap: 6px;
+    font-size: 13px;
+    color: #7c6c5e;
+  }
+
+  input[type="file"],
+  input[type="text"] {
+    border: 1px solid var(--line);
+    background: #fff;
+    border-radius: 12px;
+    padding: 10px;
+    color: var(--ink);
+  }
+
+  button {
+    border: none;
+    border-radius: 12px;
+    padding: 11px 16px;
+    cursor: pointer;
+    font-weight: 600;
+  }
+
+  .btn-main {
+    background: var(--accent);
+    color: #fff;
+  }
+
+  .btn-ghost {
+    background: #eee4d8;
+    color: #6a5848;
+  }
+
+  .status {
+    font-size: 13px;
+    color: #7f6b56;
+  }
+
+  .preview-wrap {
+    display: grid;
+    gap: 14px;
+  }
+
+  .report {
+    width: 100%;
+    border-radius: 14px;
+    border: 1px solid var(--line);
+    display: none;
+  }
+
+  .report.blur {
+    filter: blur(12px) saturate(0.9);
+  }
+
+  .code-tip {
+    font-size: 13px;
+    color: #7e6652;
+    line-height: 1.6;
+  }
+
+  .flex-row {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  @media (max-width: 740px) {
+    .form-grid {
+      grid-template-columns: 1fr;
+    }
+  }
 </style>
 </head>
-
 <body>
+  <div class="container">
+    <section class="panel">
+      <h1>PERSONAL COLOR ANALYSIS</h1>
+      <div class="subtitle">上传照片 → 生成高阶报告 → 输入付费随机密码解锁高清原图</div>
+    </section>
 
-<h1>生成你的专属气质海报</h1>
+    <section class="panel">
+      <div class="form-grid">
+        <label>
+          上传正面清晰照片
+          <input type="file" id="file" accept="image/*" />
+        </label>
 
-<input type="file" id="file" class="upload">
+        <label>
+          输入付费随机密码（解锁时填写）
+          <input type="text" id="unlockCode" placeholder="例如：A7K2Q9" />
+        </label>
 
-<button onclick="start()">开始分析</button>
+        <button class="btn-main" id="generateBtn">开始生成报告</button>
+      </div>
 
-<img id="poster" class="poster">
+      <div class="flex-row" style="margin-top: 12px;">
+        <button class="btn-ghost" id="unlockBtn" style="display:none;">输入密码解锁高清图</button>
+        <button class="btn-ghost" id="copyBtn" style="display:none;">复制测试密码</button>
+      </div>
 
-<button id="unlockBtn" class="unlock" onclick="unlock()">解锁高清版</button>
+      <p class="status" id="status">等待上传照片。</p>
+      <p class="code-tip" id="codeTip"></p>
+    </section>
+
+    <section class="panel preview-wrap">
+      <img id="report" class="report" alt="分析报告图" />
+    </section>
+  </div>
 
 <script>
+  const API_BASE = "http://localhost:3000";
+  const reportEl = document.getElementById("report");
+  const statusEl = document.getElementById("status");
+  const codeTipEl = document.getElementById("codeTip");
+  const unlockBtn = document.getElementById("unlockBtn");
+  const copyBtn = document.getElementById("copyBtn");
 
-async function start() {
-  const file = document.getElementById("file").files[0];
-  if(!file) return alert("请先上传图片");
+  let currentOrderId = "";
+  let demoCode = "";
 
-  const reader = new FileReader();
+  function setStatus(text) {
+    statusEl.textContent = text;
+  }
 
-  reader.onload = async () => {
-    const base64 = reader.result;
+  async function createOrder() {
+    const res = await fetch(`${API_BASE}/create-order`, { method: "POST" });
+    if (!res.ok) throw new Error("订单创建失败");
+    return res.json();
+  }
 
-    // 创建订单
-    const order = await fetch("https://你的后端地址/create-order", {
-      method:"POST"
-    });
-    const { token } = await order.json();
+  async function generate() {
+    const file = document.getElementById("file").files[0];
+    if (!file) {
+      alert("请先上传照片");
+      return;
+    }
 
-    // 生成报告
-    const res = await fetch("https://你的后端地址/generate", {
-      method:"POST",
-      headers:{ "Content-Type":"application/json" },
-      body: JSON.stringify({
-        imageBase64: base64,
-        token
-      })
+    setStatus("正在创建订单与随机密码...");
+
+    const reader = new FileReader();
+    reader.onload = async () => {
+      try {
+        const { orderId, token, unlockCode } = await createOrder();
+        currentOrderId = orderId;
+        demoCode = unlockCode;
+
+        setStatus("正在分析照片并生成高级报告图，请稍候...");
+
+        const res = await fetch(`${API_BASE}/generate`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            imageBase64: reader.result,
+            token
+          })
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "生成失败");
+
+        reportEl.src = data.report;
+        reportEl.style.display = "block";
+        reportEl.classList.add("blur");
+
+        unlockBtn.style.display = "inline-block";
+        copyBtn.style.display = "inline-block";
+
+        setStatus("报告已生成：当前为模糊预览，输入付费密码可解锁高清。\n");
+        codeTipEl.textContent = `演示模式：随机密码已生成（${unlockCode}）。正式上线时请通过支付成功页发送给用户。`;
+      } catch (err) {
+        setStatus("生成失败：" + err.message);
+      }
+    };
+
+    reader.readAsDataURL(file);
+  }
+
+  async function unlock() {
+    const code = document.getElementById("unlockCode").value.trim();
+
+    if (!currentOrderId) {
+      alert("请先生成报告");
+      return;
+    }
+
+    if (!code) {
+      alert("请输入付费随机密码");
+      return;
+    }
+
+    setStatus("正在校验密码...");
+
+    const res = await fetch(`${API_BASE}/unlock`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orderId: currentOrderId, unlockCode: code })
     });
 
     const data = await res.json();
+    if (!res.ok) {
+      setStatus("解锁失败：" + (data.error || "密码错误"));
+      return;
+    }
 
-    const poster = document.getElementById("poster");
-    poster.src = data.report;
+    reportEl.classList.remove("blur");
+    setStatus("解锁成功，已显示高清报告图。可保存或转发。\n");
+  }
 
-    // 模糊处理（核心）
-    poster.classList.add("blur");
-
-    document.getElementById("unlockBtn").style.display = "block";
-  };
-
-  reader.readAsDataURL(file);
-}
-
-// 测试解锁（后面换支付）
-function unlock() {
-  document.getElementById("poster").classList.remove("blur");
-}
-
+  document.getElementById("generateBtn").addEventListener("click", generate);
+  unlockBtn.addEventListener("click", unlock);
+  copyBtn.addEventListener("click", async () => {
+    if (!demoCode) return;
+    try {
+      await navigator.clipboard.writeText(demoCode);
+      setStatus("已复制测试密码到剪贴板。\n");
+    } catch {
+      setStatus(`请手动复制密码：${demoCode}`);
+    }
+  });
 </script>
-
 </body>
 </html>
